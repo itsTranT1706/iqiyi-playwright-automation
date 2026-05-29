@@ -1,0 +1,7 @@
+keyword,expectResults,description
+drama,true,Từ khóa tiếng Anh phổ biến
+phim hành động,true,Từ khóa tiếng Việt có dấu
+Running Man,true,Tên show thực tế
+xyzabc123notfound,false,Từ khóa không tồn tại
+<script>,false,Từ khóa chứa HTML tag
+  ,false,Từ khóa chỉ có khoảng trắng

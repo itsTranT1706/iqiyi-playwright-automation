@@ -29,6 +29,14 @@ export class IqiyiPlayerPage extends BasePage {
     console.log('⏳ Đang chờ quảng cáo kết thúc...');
 
     while (Date.now() - startTime < maxWaitMs) {
+      // Đóng popup nếu xuất hiện chặn màn hình
+      const closeBtn = this.page.locator('.close-btn, div.close-btn[rseat="close"], .pop-up-container .close-btn').first();
+      if (await closeBtn.isVisible().catch(() => false)) {
+        await closeBtn.click().catch(() => {});
+        console.log('❌ Đã đóng popup chặn màn hình.');
+        await this.page.waitForTimeout(1000);
+      }
+
       // Thử click nút skip nếu có
       const skipVisible = await this.skipAdButton.isVisible().catch(() => false);
       if (skipVisible) {
@@ -38,15 +46,20 @@ export class IqiyiPlayerPage extends BasePage {
         return;
       }
 
-      // Kiểm tra xem video chính đã bắt đầu chưa bằng JS
-      const isMainVideoPlaying = await this.page.evaluate(() => {
-        const videos = document.querySelectorAll('video');
-        for (const v of videos) {
-          // Video chính thường có duration > 300s (5 phút), quảng cáo ngắn hơn
-          if (v.duration > 60 && v.currentTime > 0) return true;
-        }
-        return false;
-      });
+      // Kiểm tra xem video chính đã bắt đầu chưa bằng JS (bọc try-catch đề phòng chuyển hướng làm hủy context)
+      let isMainVideoPlaying = false;
+      try {
+        isMainVideoPlaying = await this.page.evaluate(() => {
+          const videos = document.querySelectorAll('video');
+          for (const v of videos) {
+            // Video chính thường có duration > 300s (5 phút), quảng cáo ngắn hơn
+            if (v.duration > 60 && v.currentTime > 0) return true;
+          }
+          return false;
+        });
+      } catch (e) {
+        console.log('⏳ Hệ thống đang chuyển hướng trang, tiếp tục chờ...');
+      }
 
       if (isMainVideoPlaying) {
         console.log('✅ Video chính đã bắt đầu phát!');
@@ -64,6 +77,14 @@ export class IqiyiPlayerPage extends BasePage {
   async navigateAndWaitForPlayer(url: string) {
     // Dùng waitUntil:'domcontentloaded' để không bị timeout do stream
     await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    
+    // Đóng popup nếu xuất hiện chặn màn hình
+    const closeBtn = this.page.locator('.close-btn, div.close-btn[rseat="close"], .pop-up-container .close-btn').first();
+    if (await closeBtn.isVisible().catch(() => false)) {
+      await closeBtn.click().catch(() => {});
+      await this.page.waitForTimeout(1000);
+    }
+
     // Chờ thẻ video xuất hiện
     await this.page.locator('video').first().waitFor({ state: 'attached', timeout: 20000 });
     // Chờ quảng cáo kết thúc
@@ -74,50 +95,80 @@ export class IqiyiPlayerPage extends BasePage {
    * Lấy thời gian phát hiện tại từ thẻ <video> qua JS
    */
   async getCurrentPlaybackTime(): Promise<number> {
-    return await this.page.evaluate(() => {
-      // Ưu tiên video có duration dài nhất (video chính, không phải quảng cáo)
-      const videos = Array.from(document.querySelectorAll('video'));
-      const mainVideo = videos.sort((a, b) => b.duration - a.duration)[0];
-      return mainVideo ? mainVideo.currentTime : 0;
-    });
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        return await this.page.evaluate(() => {
+          const videos = Array.from(document.querySelectorAll('video'));
+          const mainVideo = videos.sort((a, b) => b.duration - a.duration)[0];
+          return mainVideo ? mainVideo.currentTime : 0;
+        });
+      } catch (e) {
+        console.log('⏳ Thử lại getCurrentPlaybackTime...');
+        await this.page.waitForTimeout(2000);
+        retries--;
+      }
+    }
+    return 0;
   }
 
-  /**
-   * Tua đến vị trí phần trăm nhất định (dùng JS trực tiếp)
-   */
-  /**
-   * Tua TIẾN một khoảng giây nhất định từ vị trí hiện tại
-   */
   async seekForwardBy(seconds: number) {
-    await this.page.evaluate((secs) => {
-      const videos = Array.from(document.querySelectorAll('video'));
-      const mainVideo = videos.sort((a, b) => b.duration - a.duration)[0];
-      if (mainVideo) {
-        mainVideo.currentTime = Math.min(mainVideo.currentTime + secs, mainVideo.duration - 5);
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        await this.page.evaluate((secs) => {
+          const videos = Array.from(document.querySelectorAll('video'));
+          const mainVideo = videos.sort((a, b) => b.duration - a.duration)[0];
+          if (mainVideo) {
+            mainVideo.currentTime = Math.min(mainVideo.currentTime + secs, mainVideo.duration - 5);
+          }
+        }, seconds);
+        await this.page.waitForTimeout(2000);
+        return;
+      } catch (e) {
+        console.log('⏳ Thử lại seekForwardBy...');
+        await this.page.waitForTimeout(2000);
+        retries--;
       }
-    }, seconds);
-    await this.page.waitForTimeout(2000);
+    }
   }
 
   async seekTo(percent: number) {
-    await this.page.evaluate((pct) => {
-      const videos = Array.from(document.querySelectorAll('video'));
-      const mainVideo = videos.sort((a, b) => b.duration - a.duration)[0];
-      if (mainVideo && mainVideo.duration) {
-        mainVideo.currentTime = mainVideo.duration * (pct / 100);
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        await this.page.evaluate((pct) => {
+          const videos = Array.from(document.querySelectorAll('video'));
+          const mainVideo = videos.sort((a, b) => b.duration - a.duration)[0];
+          if (mainVideo && mainVideo.duration) {
+            mainVideo.currentTime = mainVideo.duration * (pct / 100);
+          }
+        }, percent);
+        await this.page.waitForTimeout(2000);
+        return;
+      } catch (e) {
+        console.log('⏳ Thử lại seekTo...');
+        await this.page.waitForTimeout(2000);
+        retries--;
       }
-    }, percent);
-    await this.page.waitForTimeout(2000);
+    }
   }
 
-  /**
-   * Kiểm tra video chính có đang phát không
-   */
   async isPlaying(): Promise<boolean> {
-    return await this.page.evaluate(() => {
-      const videos = Array.from(document.querySelectorAll('video'));
-      return videos.some(v => !v.paused && v.currentTime > 0 && v.duration > 60);
-    });
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        return await this.page.evaluate(() => {
+          const videos = Array.from(document.querySelectorAll('video'));
+          return videos.some(v => !v.paused && v.currentTime > 0 && v.duration > 60);
+        });
+      } catch (e) {
+        console.log('⏳ Thử lại isPlaying...');
+        await this.page.waitForTimeout(2000);
+        retries--;
+      }
+    }
+    return false;
   }
 
   /**

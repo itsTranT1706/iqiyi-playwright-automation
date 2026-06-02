@@ -52,3 +52,21 @@ Tài liệu này ghi lại tất cả các lỗi chức năng và giao diện c�
 *   **Kết quả thực tế (Actual Behavior)**:
     * Hộp gợi ý tự động không hiển thị trên màn hình.
     * Log ghi nhận: `TC2.8: Menu gợi ý tìm kiếm hiển thị: false`.
+
+---
+
+## 🐛 BUG-004: Ghi nhận lịch sử xem tức thì đối với video siêu ngắn (Không có ngưỡng Micro-playback)
+
+*   **Mã Test Case liên quan**: [TC3.3: Bỏ qua ghi nhận lịch sử khi xem phim siêu ngắn (Micro-playback)](file:///e:/My%20workspace/tester/tests/e2e/history.spec.ts)
+*   **Mức độ nghiêm trọng**: Thấp (Low) - Ảnh hưởng đến tính chính xác của lịch sử xem.
+*   **Mô tả**: Hệ thống tự động ghi nhận lịch sử xem phim ngay lập tức khi video vừa được tải (thậm chí dưới 2 giây), thay vì bỏ qua đối với các lượt xem siêu ngắn (Micro-playback) dưới 5-10 giây như thiết kế thông thường.
+*   **Các bước tái hiện (Steps to Reproduce)**:
+    1. Xóa toàn bộ lịch sử xem hiện tại.
+    2. Mở một video bất kỳ (Ví dụ: Hậu Duệ Mặt Trời Tập 1).
+    3. Đợi video load và phát trong khoảng 2 giây, sau đó đóng trình phát hoặc chuyển trang ngay lập tức.
+    4. Quay lại trang cá nhân / lịch sử xem.
+*   **Kết quả kỳ vọng (Expected Behavior)**:
+    * Do thời lượng xem quá ngắn (2 giây - Micro-playback), hệ thống không ghi nhận lịch sử xem cho video này.
+*   **Kết quả thực tế (Actual Behavior)**:
+    * Video vẫn hiển thị trong danh sách lịch sử xem ngay lập tức.
+

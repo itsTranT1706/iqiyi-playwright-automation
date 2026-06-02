@@ -74,18 +74,24 @@ npm install
 npx playwright install chrome
 ```
 
-### 2. Chạy toàn bộ các dự án kiểm thử
-Để chạy đồng thời tất cả các module kiểm thử:
+### 2. Chạy mặc định (Chỉ chạy 4 chức năng E2E chính)
+Theo cấu hình mặc định trong `playwright.config.ts`, khi bạn chạy câu lệnh dưới đây, hệ thống sẽ **chỉ chạy 4 chức năng E2E cốt lõi**:
+*   *Trình phát Video*
+*   *Tìm kiếm & Bộ lọc*
+*   *Lưu lịch sử xem tiếp*
+*   *Danh sách xem sau*
+
 ```bash
+# Chạy mặc định 4 chức năng E2E chính
 npx playwright test
 ```
 
-### 3. Chạy kiểm thử cho từng Module riêng biệt
-Bạn có thể chạy riêng từng Project được định nghĩa trong `playwright.config.ts`:
+### 3. Chạy kiểm thử cho các dự án/module nâng cao khác
+Bạn có thể chạy riêng từng Project nâng cao bằng cách chỉ định cờ `--project` tương ứng:
 
-*   **Chạy luồng E2E người dùng cuối:**
+*   **Chạy luồng E2E trên trình duyệt Chrome thực tế:**
     ```bash
-    npx playwright test tests/e2e --project="E2E - Chrome"
+    npx playwright test --project="E2E - Chrome"
     ```
 *   **Chạy kiểm thử hướng dữ liệu (Data-Driven):**
     ```bash

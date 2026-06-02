@@ -12,7 +12,7 @@ import { defineConfig, devices } from '@playwright/test';
  *  load-tests/k6/       - Load tests (dùng K6, chạy riêng)
  */
 export default defineConfig({
-  testDir: './tests',
+  testDir: './tests/e2e',
 
   /* Timeout mặc định 120s (chờ quảng cáo + load chậm) */
   timeout: 120_000,
@@ -50,7 +50,7 @@ export default defineConfig({
   projects: [
     // -------------------------------------------------------
     // E2E Tests — Luồng người dùng đầu cuối (Chrome thật)
-    // Chạy: npx playwright test tests/e2e --project="E2E - Chrome"
+    // Chạy mặc định: npx playwright test
     // -------------------------------------------------------
     {
       name: 'E2E - Chrome',
@@ -61,9 +61,13 @@ export default defineConfig({
       },
     },
 
+    /* 
+    ===========================================================================
+    CÁC BỘ TEST NÂNG CAO KHÁC (BỎ COMMENT ĐỂ KÍCH HOẠT LẠI KHI CẦN)
+    ===========================================================================
+
     // -------------------------------------------------------
     // Data-Driven Tests — Tìm kiếm/đăng ký hàng loạt
-    // Chạy: npx playwright test tests/data-driven --project="Data-Driven"
     // -------------------------------------------------------
     {
       name: 'Data-Driven',
@@ -76,7 +80,6 @@ export default defineConfig({
 
     // -------------------------------------------------------
     // Visual Regression Tests — So sánh ảnh pixel-by-pixel
-    // Chạy: npx playwright test tests/visual --project="Visual"
     // -------------------------------------------------------
     {
       name: 'Visual',
@@ -90,7 +93,6 @@ export default defineConfig({
 
     // -------------------------------------------------------
     // Security Tests — XSS, SQL Injection
-    // Chạy: npx playwright test tests/security --project="Security"
     // -------------------------------------------------------
     {
       name: 'Security',
@@ -104,7 +106,6 @@ export default defineConfig({
 
     // -------------------------------------------------------
     // Broken Link Checker — Quét link lỗi toàn trang
-    // Chạy: npx playwright test tests/broken-links --project="Broken Links"
     // -------------------------------------------------------
     {
       name: 'Broken Links',
@@ -116,5 +117,6 @@ export default defineConfig({
         headless: true, // headless để chạy nhanh hơn
       },
     },
+    */
   ],
 });

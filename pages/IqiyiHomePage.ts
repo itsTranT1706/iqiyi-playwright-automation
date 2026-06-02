@@ -9,8 +9,8 @@ export class IqiyiHomePage extends BasePage {
 
   constructor(page: Page) {
     super(page);
-    this.searchInput = page.locator('input.search-input');
-    this.searchButton = page.locator('div.search-btn');
+    this.searchInput = page.locator('input[rseat="search_box"], input.search-input, input[placeholder*="tìm kiếm" i], input[placeholder*="search" i]').first();
+    this.searchButton = page.locator('div.search-btn, .search-btn, .search-icon, button:has(img[src*="search"])').first();
     this.userProfile = page.locator('div.user-wrap');
     this.historyButton = page.locator('div.history-and-collect');
   }

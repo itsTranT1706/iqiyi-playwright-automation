@@ -175,52 +175,24 @@ export class IqiyiPlayerPage extends BasePage {
    * Thêm vào Watch Later - click nút trong action bar bên dưới player
    */
   async addToWatchLater() {
-    // Tìm TẤT CẢ các span có text "Watch Later"
-    // rồi chọn cái nào nằm trong action bar dưới player (không phải sidebar)
-    const clicked = await this.page.evaluate(() => {
-      const allSpans = Array.from(document.querySelectorAll('span'));
-      const watchLaterSpans = allSpans.filter(s =>
-        s.textContent?.trim() === 'Watch Later' || s.textContent?.trim() === 'Xem sau'
-      );
-
-      for (const span of watchLaterSpans) {
-        // Tìm container button/li/div trực tiếp chứa span này
-        // Dùng parentElement thay closest để không leo quá xa
-        let el: HTMLElement | null = span.parentElement;
-        // Leo tối đa 3 cấp
-        for (let i = 0; i < 3 && el; i++) {
-          const tag = el.tagName.toLowerCase();
-          const cls = el.className || '';
-          // Nếu tìm thấy element có class liên quan đến watch-later hoặc collect
-          if (cls.includes('watch') || cls.includes('collect') || cls.includes('later') ||
-              tag === 'button' || tag === 'li') {
-            el.click();
-            return `clicked: ${tag}.${cls.substring(0, 30)}`;
-          }
-          el = el.parentElement;
-        }
-        // Fallback: click trực tiếp vào span's parentElement
-        if (span.parentElement) {
-          span.parentElement.click();
-          return 'clicked parent fallback';
-        }
-      }
-      return 'not found';
-    });
-
-    console.log(`🖖 JS click Watch Later: ${clicked}`);
+    const collectBtn = this.page.locator('.collection-wrap').first();
+    await collectBtn.waitFor({ state: 'visible', timeout: 15000 });
+    await collectBtn.click({ force: true }).catch(() => collectBtn.evaluate(el => (el as HTMLElement).click()));
     await this.page.waitForTimeout(2000);
   }
 
   /**
-   * Kiểm tra toast "Added to Watch Later" xuất hiện
+   * Kiểm tra xem video đã được thêm vào Watch Later hay chưa
    */
   async isWatchLaterAdded(): Promise<boolean> {
-    try {
-      await this.watchLaterToast.waitFor({ state: 'visible', timeout: 5000 });
-      return true;
-    } catch {
-      return false;
-    }
+    const isAdded = await this.page.evaluate(() => {
+      const wrap = document.querySelector('.collection-wrap');
+      if (!wrap) return false;
+      const img = wrap.querySelector('img');
+      if (!img) return false;
+      const src = img.getAttribute('src') || '';
+      return src.includes('green');
+    });
+    return isAdded;
   }
 }

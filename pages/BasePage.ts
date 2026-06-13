@@ -18,4 +18,11 @@ export class BasePage {
   async getTitle() {
     return await this.page.title();
   }
+
+  async dismissCookies() {
+    const acceptBtn = this.page.locator('text=Chấp nhận tất cả Cookies, text=Accept All Cookies, .cookie-accept-btn').first();
+    if (await acceptBtn.isVisible().catch(() => false)) {
+      await acceptBtn.click();
+    }
+  }
 }

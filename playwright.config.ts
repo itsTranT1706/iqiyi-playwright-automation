@@ -14,8 +14,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
 
-  /* Timeout mặc định 120s (chờ quảng cáo + load chậm) */
-  timeout: 120_000,
+  /* Timeout mặc định 60s (tài khoản VIP không có quảng cáo) */
+  timeout: 60_000,
 
   /* Chạy tuần tự để không bị conflict phiên đăng nhập */
   fullyParallel: false,
@@ -27,8 +27,8 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }], ['list']],
 
   use: {
-    /* Timeout 30s cho video/mạng chậm */
-    actionTimeout: 30_000,
+    /* Timeout 15s cho action/mạng chậm */
+    actionTimeout: 15_000,
     navigationTimeout: 60_000,
 
     /* Tự động đăng nhập bằng session đã lưu */

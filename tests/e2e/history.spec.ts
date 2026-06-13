@@ -10,27 +10,18 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 
-  const acceptCookies = async (page) => {
-    const acceptBtn = page.locator('text=Chấp nhận tất cả Cookies, text=Accept All Cookies, .cookie-accept-btn').first();
-    if (await acceptBtn.isVisible().catch(() => false)) {
-      await acceptBtn.click();
-      await page.waitForTimeout(1000);
-    }
-  };
-
   test('TC3.1: Lưu lịch sử xem phim bình thường', async ({ page }) => {
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
     // 1. Xem phim và tua đến 5%
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(5);
-    await page.waitForTimeout(6000); // Đợi heartbeat gửi lên server
+    await page.waitForTimeout(4000); // Đợi heartbeat gửi lên server (giảm từ 6000 xuống 4000)
 
     // 2. Vào trang lịch sử xem
     await library.goToHistory();
-    await acceptCookies(page);
+    await library.dismissCookies();
 
     // Dùng expect.poll kết hợp reload để đợi server đồng bộ lịch sử xem
     await expect.poll(async () => {
@@ -50,46 +41,39 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
     const library = new IqiyiLibraryPage(page);
 
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(8);
-    await page.waitForTimeout(2000);
 
     // Mất mạng đột ngột
     console.log('TC3.2: Ngắt mạng...');
     await context.setOffline(true);
     try {
-      await page.waitForTimeout(4000);
+      await page.waitForTimeout(2000); // Giảm từ 4000 xuống 2000
     } finally {
       // Kết nối lại mạng
       console.log('TC3.2: Khôi phục mạng...');
       await context.setOffline(false);
     }
-    await page.waitForTimeout(5000); // Chờ đồng bộ lại
 
-    await library.goToHistory();
-    const firstTitle = await library.getFirstHistoryTitle();
+    let firstTitle = '';
+    await expect.poll(async () => {
+      firstTitle = await library.getFirstHistoryTitle();
+      return firstTitle.toLowerCase();
+    }, { timeout: 15000 }).toContain('descendants');
+    
     console.log(`TC3.2: Phim trong lịch sử sau phục hồi mạng: ${firstTitle}`);
-    expect(firstTitle.toLowerCase()).toContain('descendants');
   });
 
   test('TC3.3: Bỏ qua ghi nhận lịch sử khi xem phim siêu ngắn (Micro-playback)', async ({ page }) => {
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
-    // Xóa lịch sử trước nếu có để test được chính xác
+    // Xóa lịch sử trước nếu có bằng clearAllItems
     await library.goToHistory();
-    await acceptCookies(page);
-    const editBtn = page.locator('button.edit, button:has-text("Edit")').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(2000);
-    }
+    await library.dismissCookies();
+    await library.clearAllItems();
 
     // Xem phim chỉ 2 giây rồi đóng (xác minh hệ thống lưu lại lịch sử)
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
 
     await library.goToHistory();
     const hasItems = await library.hasHistoryItems();
@@ -104,13 +88,12 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
     const library = new IqiyiLibraryPage(page);
 
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     
     // Tua đến 99% thời lượng
     await player.seekTo(99);
     
-    // Đợi phát hết phim (ở tài khoản free có thể tự dừng hoặc hiện nút phát lại)
-    await page.waitForTimeout(10000);
+    // Đợi phát hết phim (khoảng 3s là đủ cho đoạn cuối)
+    await page.waitForTimeout(3000);
 
     await library.goToHistory();
     const progressText = await page.evaluate(() => {
@@ -123,16 +106,15 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
 
   test('TC3.5: Xóa một mục cụ thể trong lịch sử', async ({ page }) => {
     const library = new IqiyiLibraryPage(page);
+    const player = new IqiyiPlayerPage(page);
     
     // Đảm bảo có ít nhất 1 phim trong lịch sử
-    const player = new IqiyiPlayerPage(page);
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(12);
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000); // Đợi heartbeat gửi lên server
 
     await library.goToHistory();
-    await acceptCookies(page);
+    await library.dismissCookies();
 
     const initialCount = await page.locator('[rseat^="select_"], .mask-container:visible, .history-target:visible').count();
     console.log(`TC3.5: Số lượng phim trước khi xóa: ${initialCount}`);
@@ -153,16 +135,15 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
 
   test('TC3.6: Xóa toàn bộ lịch sử', async ({ page }) => {
     const library = new IqiyiLibraryPage(page);
+    const player = new IqiyiPlayerPage(page);
     
     // Đảm bảo có phim trong lịch sử
-    const player = new IqiyiPlayerPage(page);
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(15);
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000); // Đợi heartbeat gửi lên server
 
     await library.goToHistory();
-    await acceptCookies(page);
+    await library.dismissCookies();
 
     // Dùng expect.poll để đảm bảo phim đã xuất hiện trong lịch sử trước khi thực hiện xóa
     await expect.poll(async () => {
@@ -174,10 +155,7 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
       intervals: [3000, 5000, 5000]
     }).toBe(true);
 
-    await library.clickEditButton();
-    await library.clickSelectAll();
-    await library.clickDeleteButton();
-    await page.waitForTimeout(3000);
+    await library.clearAllItems();
 
     const hasItemsAfter = await library.hasHistoryItems();
     console.log(`TC3.6: Lịch sử còn phim không: ${hasItemsAfter}`);
@@ -190,15 +168,13 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
 
     // 1. Xem mốc 5%
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(5);
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     // 2. Xem mốc 15%
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(15);
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     await library.goToHistory();
     const progressText = await page.evaluate(() => {
@@ -214,9 +190,8 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
     const player = new IqiyiPlayerPage(page);
     
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(6);
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     // Tạo tab mới chia sẻ cùng cookies/storage
     const tab2 = await context.newPage();
@@ -235,11 +210,10 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
 
     // 1. Mở tập 1, tua đến cuối tập (ví dụ 99.8%) để kích hoạt autoplay tập tiếp theo
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(99.8);
     
-    // Đợi 15s để chuyển tập và load tập 2
-    await page.waitForTimeout(15000);
+    // Đợi 20s cho đến khi chuyển tập và URL đổi thành tập 2/episode 2
+    await page.waitForURL(/tap-2|episode-2/, { timeout: 20000 });
 
     // 2. Vào lịch sử kiểm tra xem có lịch sử của tập tiếp theo không
     await library.goToHistory();
@@ -254,13 +228,12 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
 
     // 1. Tạo lịch sử ở mốc 10%
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player.seekTo(10);
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     // 2. Vào trang lịch sử xem
     await library.goToHistory();
-    await acceptCookies(page);
+    await library.dismissCookies();
 
     // Click vào phim đầu tiên trong danh sách lịch sử để phát tiếp (xử lý trường hợp mở tab mới)
     const firstItemLink = page.locator('.history-target:visible, a[href*="/play/"]:visible').first();
@@ -281,7 +254,6 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
     
     const targetPlayer = new IqiyiPlayerPage(playPage);
     await targetPlayer.waitForAdToFinish();
-    await playPage.waitForTimeout(2000);
 
     const resumeTime = await targetPlayer.getCurrentPlaybackTime();
     console.log(`TC3.10: Phát tiếp từ trang lịch sử thành công tại giây: ${resumeTime}s`);
@@ -300,10 +272,8 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
 
     // 1. Test mốc sát dưới ngưỡng (ví dụ: phát phim 4 giây rồi tắt)
     await library.goToHistory();
-    await library.clickEditButton().catch(() => {});
-    await library.clickSelectAll().catch(() => {});
-    await library.clickDeleteButton().catch(() => {});
-    await page.waitForTimeout(2000);
+    await library.dismissCookies();
+    await library.clearAllItems();
 
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
     await page.waitForTimeout(4000); // 4s dưới ngưỡng
@@ -330,25 +300,23 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
     const ALTERNATIVE_VIDEO_URL = 'https://www.iq.com/play/my-love-from-the-star-episode-1-19rxykwymg?lang=vi_vn';
     
     await player1.navigateAndWaitForPlayer(ALTERNATIVE_VIDEO_URL);
-    await page.waitForTimeout(2000);
     await player1.seekTo(10);
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(4000);
 
     // Mở Tab 2, phát cùng phim và tua đến mốc 20%
     const tab2 = await context.newPage();
-    await tab2.bringToFront(); // Đưa tab 2 lên foreground để tránh bị browser throttling làm dừng phát video
+    await tab2.bringToFront(); // Đưa tab 2 lên foreground để tránh bị browser throttling
     const player2 = new IqiyiPlayerPage(tab2);
     await player2.navigateAndWaitForPlayer(ALTERNATIVE_VIDEO_URL);
-    await tab2.waitForTimeout(2000);
     await player2.seekTo(20);
-    await tab2.waitForTimeout(8000); // Chờ để kích hoạt API heartbeat gửi mốc lịch sử
+    await tab2.waitForTimeout(4000); // Chờ để kích hoạt API heartbeat gửi mốc lịch sử
     
     // Tạm dừng video để kích hoạt đồng bộ lịch sử ngay lập tức
     await tab2.evaluate(() => {
       const v = document.querySelector('video');
       if (v) v.pause();
     });
-    await tab2.waitForTimeout(2000); // Đợi gửi request
+    await tab2.waitForTimeout(1000); // Đợi gửi request
     await tab2.close();
 
     // Mở trang lịch sử xem và xác nhận xem mốc 20% hay 10% được lưu giữ

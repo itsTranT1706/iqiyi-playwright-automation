@@ -11,13 +11,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 
-  const acceptCookies = async (page) => {
-    const acceptBtn = page.locator('text=Chấp nhận tất cả Cookies, text=Accept All Cookies, .cookie-accept-btn').first();
-    if (await acceptBtn.isVisible().catch(() => false)) {
-      await acceptBtn.click();
-      await page.waitForTimeout(1000);
-    }
-  };
+  // Removed local acceptCookies helper in favor of library.dismissCookies()
 
   test('TC4.1: Thêm phim vào Xem sau thành công', async ({ page }) => {
     const player = new IqiyiPlayerPage(page);
@@ -25,25 +19,17 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // 1. Dọn dẹp Xem sau để kiểm tra chính xác
     await library.goToCollections();
-    await acceptCookies(page);
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.dismissCookies();
+    await library.clearAllItems();
 
     // 2. Thêm vào xem sau từ player
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     
     const isAddedBefore = await player.isWatchLaterAdded();
     if (!isAddedBefore) {
       await player.addToWatchLater();
       // Chờ cho trạng thái cập nhật trên UI
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000); // Đợi backend sync
     }
     const isAddedAfter = await player.isWatchLaterAdded();
     expect(isAddedAfter).toBe(true);
@@ -70,18 +56,15 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // 1. Đảm bảo đã có phim trong Xem sau
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     const isAdded = await player.isWatchLaterAdded();
     if (!isAdded) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000); // Đợi backend sync
     }
 
     // 2. Hủy thêm xem sau từ player
     await player.addToWatchLater(); // Toggle off
     await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(false);
-    await page.waitForTimeout(3000); // Đợi backend sync
 
     const isAddedAfter = await player.isWatchLaterAdded();
     expect(isAddedAfter).toBe(false);
@@ -102,7 +85,6 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
     const player = new IqiyiPlayerPage(page);
 
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
 
     const initialAddedState = await player.isWatchLaterAdded();
     console.log(`TC4.3: Trạng thái ban đầu: ${initialAddedState}`);
@@ -141,33 +123,25 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // Dọn dẹp trước
     await library.goToCollections();
-    await acceptCookies(page);
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.dismissCookies();
+    await library.clearAllItems();
 
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
 
     // Ngắt mạng
     console.log('TC4.4: Ngắt kết nối mạng...');
     await context.setOffline(true);
     try {
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1000);
 
       // Click thêm xem sau (API call sẽ thất bại hoặc timeout)
       await player.addToWatchLater().catch(() => {});
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(1000);
     } finally {
       // Khôi phục mạng
       console.log('TC4.4: Khôi phục kết nối mạng...');
       await context.setOffline(false);
     }
-    await page.waitForTimeout(3000);
 
     // Tải lại trang và kiểm tra xem đã bị block (không thêm thành công)
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -182,31 +156,21 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // 1. Dọn dẹp
     await library.goToCollections();
-    await acceptCookies(page);
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.dismissCookies();
+    await library.clearAllItems();
 
     // 2. Thêm Phim A (Descendants of the Sun)
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     if (!(await player.isWatchLaterAdded())) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000); // Đợi backend sync
     }
 
     // 3. Thêm Phim B (Mở trực tiếp My Love From the Star để ổn định 100%)
     await player.navigateAndWaitForPlayer('https://www.iq.com/play/my-love-from-the-star-episode-1-19rxykwymg?lang=vi_vn');
-    await page.waitForTimeout(2000);
     if (!(await player.isWatchLaterAdded())) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000); // Đợi backend sync
     }
 
     // 4. Vào trang Xem sau và xác nhận phim mới nhất được xếp trên đầu
@@ -228,14 +192,8 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // 1. Dọn dẹp Xem sau để kiểm tra chính xác
     await library.goToCollections();
-    await acceptCookies(page);
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.dismissCookies();
+    await library.clearAllItems();
 
     // 2. Thêm chính xác 1 phim
     const player = new IqiyiPlayerPage(page);
@@ -243,7 +201,6 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
     if (!(await player.isWatchLaterAdded())) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000);
     }
     await library.goToCollections();
 
@@ -251,7 +208,6 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
     await library.clickEditButton();
     await library.selectHistoryItem(0); // Checkbox đầu tiên
     await library.clickDeleteButton();
-    await page.waitForTimeout(3000);
 
     await expect.poll(async () => {
       await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
@@ -269,30 +225,20 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // 1. Dọn dẹp sạch trước khi add
     await library.goToCollections();
-    await acceptCookies(page);
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.dismissCookies();
+    await library.clearAllItems();
 
     // 2. Thêm 2 phim vào danh sách
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(3000); // Đợi page interactive và API load xong
     if (!(await player.isWatchLaterAdded())) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000);
     }
 
     await player.navigateAndWaitForPlayer('https://www.iq.com/play/my-love-from-the-star-episode-1-19rxykwymg?lang=vi_vn');
-    await page.waitForTimeout(3000); // Đợi page interactive và API load xong
     if (!(await player.isWatchLaterAdded())) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000);
     }
 
     // 3. Vào trang danh sách xem sau và xóa hàng loạt
@@ -301,7 +247,6 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
     await library.clickEditButton();
     await library.clickSelectAll();
     await library.clickDeleteButton();
-    await page.waitForTimeout(3000);
 
     await expect.poll(async () => {
       await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
@@ -316,11 +261,11 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   test('TC4.8: Phân trang / Lazy load danh sách Xem sau', async ({ page }) => {
     const library = new IqiyiLibraryPage(page);
     await library.goToCollections();
-    await acceptCookies(page);
+    await library.dismissCookies();
 
     // Cuộn xuống cuối trang
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(1000);
 
     // Check xem có hiển thị footer để đảm bảo cuộn thành công
     const noMore = page.getByText(/Copyright|About iQIYI|Help and support|No more content|Trống|Empty/i).filter({ visible: true }).first();
@@ -338,11 +283,10 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
     if (!(await player.isWatchLaterAdded())) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000);
     }
  
     await library.goToCollections();
-    await acceptCookies(page);
+    await library.dismissCookies();
  
     // Click vào phim đầu tiên trong xem sau để xem phim (click vào link phim/ảnh)
     const firstItem = (await library.getWrapRightLocator()).locator('.collect-item a, .album-item a, a.img, a[href*="/play/"], a[href*="/album/"]').first();
@@ -372,13 +316,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // Dọn dẹp
     await library.goToCollections();
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.clearAllItems();
 
     // Mở Tab 2
     const tab2 = await context.newPage();
@@ -393,7 +331,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
       await player1.addToWatchLater();
       await expect.poll(async () => await player1.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
     }
-    await page.waitForTimeout(3000); // Chờ API đồng bộ đồng nhất
+    // Dùng expect.poll ở dưới để đồng bộ
 
     // Tab 2 reload và kiểm tra xem có đồng bộ
     await tab2.bringToFront();
@@ -415,30 +353,23 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // 1. Dọn dẹp
     await library.goToCollections();
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.clearAllItems();
 
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
     
     // Đảm bảo trạng thái ban đầu là chưa thêm
     const isAdded = await player.isWatchLaterAdded();
     if (isAdded) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(false);
-      await page.waitForTimeout(3000);
+      // Trạng thái đã được check bằng expect.poll
     }
 
     // Giả lập click nhanh 2 lần liên tục (như mạng chập chờn click đúp)
     const collectBtn = page.locator('.collection-wrap').first();
     await collectBtn.click({ force: true });
     await collectBtn.click({ force: true });
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(2000);
 
     // Xác nhận trên trang collections chỉ xuất hiện đúng 1 item duy nhất (scope to .wrap-right)
     await library.goToCollections();
@@ -457,7 +388,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   test('TC4.12: Xóa Stale Cache khi chuyển đổi tài khoản (Đăng xuất)', async ({ page, context }) => {
     const library = new IqiyiLibraryPage(page);
     await library.goToCollections();
-    await acceptCookies(page);
+    await library.dismissCookies();
 
     // 1. Clear cookies để giả lập Logout tài khoản hiện tại
     console.log('TC4.12: Clear session cookies để logout...');
@@ -484,32 +415,22 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
 
     // Dọn dẹp trước
     await library.goToCollections();
-    const editBtn = (await library.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Quản lý"), button.bXyydC').first();
-    if (await editBtn.isVisible().catch(() => false)) {
-      await library.clickEditButton();
-      await library.clickSelectAll();
-      await library.clickDeleteButton();
-      await page.waitForTimeout(3000);
-    }
+    await library.clearAllItems();
 
-    // 1. Truy cập URL của Tập 1 trước
-    console.log(`TC4.13: Mở trang phát Tập 1: ${TEST_VIDEO_URL}`);
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-    await page.waitForTimeout(2000);
 
     // 2. Chọn chuyển sang Tập 2 từ danh sách tập phim dưới trình phát
     console.log("TC4.13: Chọn Tập 2 từ danh sách tập phim...");
     const ep2Btn = page.locator('a[href*="-episode-2-"], a[href*="-tap-2-"]').first();
     await ep2Btn.waitFor({ state: 'visible', timeout: 15000 });
     await ep2Btn.click();
-    await page.waitForTimeout(4000);
     await player.waitForAdToFinish();
 
     // 3. Thêm vào xem sau từ trang tập 2
     if (!(await player.isWatchLaterAdded())) {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
-      await page.waitForTimeout(3000); // Đợi backend sync
+      // Đợi trạng thái UI cập nhật
     }
 
     // 3. Vào trang xem sau và kiểm tra xem hệ thống lưu Series hay Tập đơn

@@ -24,7 +24,7 @@ export class IqiyiPlayerPage extends BasePage {
    * Chờ quảng cáo kết thúc hoặc skip nếu có thể.
    * iQIYI hiển thị quảng cáo overlay ở đầu video.
    */
-  async waitForAdToFinish(maxWaitMs = 35000) {
+  async waitForAdToFinish(maxWaitMs = 10000) {
     const startTime = Date.now();
     console.log('⏳ Đang chờ quảng cáo kết thúc...');
 
@@ -34,7 +34,7 @@ export class IqiyiPlayerPage extends BasePage {
       if (await closeBtn.isVisible().catch(() => false)) {
         await closeBtn.click().catch(() => {});
         console.log('❌ Đã đóng popup chặn màn hình.');
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(500);
       }
 
       // Thử click nút skip nếu có
@@ -42,7 +42,7 @@ export class IqiyiPlayerPage extends BasePage {
       if (skipVisible) {
         await this.skipAdButton.click();
         console.log('⏩ Đã skip quảng cáo!');
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(500);
         return;
       }
 
@@ -66,7 +66,7 @@ export class IqiyiPlayerPage extends BasePage {
         return;
       }
 
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForTimeout(1000);
     }
     console.log('⚠️ Hết thời gian chờ quảng cáo, tiếp tục test...');
   }
@@ -82,16 +82,16 @@ export class IqiyiPlayerPage extends BasePage {
     const closeBtn = this.page.locator('.close-btn, div.close-btn[rseat="close"], .pop-up-container .close-btn').first();
     if (await closeBtn.isVisible().catch(() => false)) {
       await closeBtn.click().catch(() => {});
-      await this.page.waitForTimeout(1000);
+      await this.page.waitForTimeout(500);
     }
 
     // Chờ thẻ video xuất hiện
-    await this.page.locator('video').first().waitFor({ state: 'attached', timeout: 35000 });
+    await this.page.locator('video').first().waitFor({ state: 'attached', timeout: 15000 });
     // Chờ quảng cáo kết thúc
     await this.waitForAdToFinish();
 
     // Chờ thêm để event listeners của React/JS được bind hoàn toàn và trang ổn định
-    await this.page.waitForTimeout(5000);
+    await this.page.waitForTimeout(2000);
   }
 
   /**
@@ -108,7 +108,7 @@ export class IqiyiPlayerPage extends BasePage {
         });
       } catch (e) {
         console.log('⏳ Thử lại getCurrentPlaybackTime...');
-        await this.page.waitForTimeout(2000);
+        await this.page.waitForTimeout(1000);
         retries--;
       }
     }
@@ -126,11 +126,11 @@ export class IqiyiPlayerPage extends BasePage {
             mainVideo.currentTime = Math.min(mainVideo.currentTime + secs, mainVideo.duration - 5);
           }
         }, seconds);
-        await this.page.waitForTimeout(2000);
+        await this.page.waitForTimeout(1000);
         return;
       } catch (e) {
         console.log('⏳ Thử lại seekForwardBy...');
-        await this.page.waitForTimeout(2000);
+        await this.page.waitForTimeout(1000);
         retries--;
       }
     }
@@ -147,11 +147,11 @@ export class IqiyiPlayerPage extends BasePage {
             mainVideo.currentTime = mainVideo.duration * (pct / 100);
           }
         }, percent);
-        await this.page.waitForTimeout(2000);
+        await this.page.waitForTimeout(1000);
         return;
       } catch (e) {
         console.log('⏳ Thử lại seekTo...');
-        await this.page.waitForTimeout(2000);
+        await this.page.waitForTimeout(1000);
         retries--;
       }
     }
@@ -167,7 +167,7 @@ export class IqiyiPlayerPage extends BasePage {
         });
       } catch (e) {
         console.log('⏳ Thử lại isPlaying...');
-        await this.page.waitForTimeout(2000);
+        await this.page.waitForTimeout(1000);
         retries--;
       }
     }
@@ -181,7 +181,7 @@ export class IqiyiPlayerPage extends BasePage {
     const collectBtn = this.page.locator('.collection-wrap').first();
     await collectBtn.waitFor({ state: 'visible', timeout: 15000 });
     await collectBtn.click({ force: true }).catch(() => collectBtn.evaluate(el => (el as HTMLElement).click()));
-    await this.page.waitForTimeout(2000);
+    await this.page.waitForTimeout(500);
   }
 
   /**

@@ -35,13 +35,11 @@ export class IqiyiLibraryPage extends BasePage {
     const editBtn = this.page.locator('button.edit, button:has-text("Edit"), button:has-text("Sửa"), button:has-text("Quản lý"), button.bXyydC').first();
     const emptyText = this.page.locator('text=/No Watch History|No Watch Later|Chưa có lịch sử|Trống|Empty/').first();
     
-    for (let i = 0; i < 20; i++) {
-      if (await editBtn.isVisible().catch(() => false) || await emptyText.isVisible().catch(() => false)) {
-        break;
-      }
-      await this.page.waitForTimeout(500);
-    }
-    await this.page.waitForTimeout(2000); // Additional safety margin for items binding
+    await Promise.race([
+      editBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {}),
+      emptyText.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
+    ]);
+    await this.page.waitForTimeout(500); // Additional safety margin for items binding reduced to 500ms
   }
 
   async goToHistory() {
@@ -49,19 +47,18 @@ export class IqiyiLibraryPage extends BasePage {
     const url = this.page.url();
     if (!url.includes('iq.com')) {
       await this.page.goto('https://www.iq.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForTimeout(1000);
     }
     await this.page.goto('https://www.iq.com/personal?type=history', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await this.page.waitForTimeout(1000);
 
     // Dismiss any modal/verification popups if they appear
     const closeBtn = this.page.locator('.close-btn, div.close-btn[rseat="close"], .pop-up-container .close-btn').first();
     if (await closeBtn.isVisible().catch(() => false)) {
       await closeBtn.click().catch(() => {});
-      await this.page.waitForTimeout(1000);
+      await this.page.waitForTimeout(500);
     }
     await this.waitForPersonalPageLoad();
   }
@@ -70,19 +67,18 @@ export class IqiyiLibraryPage extends BasePage {
     const url = this.page.url();
     if (!url.includes('iq.com')) {
       await this.page.goto('https://www.iq.com/', { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForTimeout(1000);
     }
     await this.page.goto('https://www.iq.com/personal?type=favorite', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await this.page.waitForTimeout(1000);
 
     // Dismiss any modal/verification popups if they appear
     const closeBtn = this.page.locator('.close-btn, div.close-btn[rseat="close"], .pop-up-container .close-btn').first();
     if (await closeBtn.isVisible().catch(() => false)) {
       await closeBtn.click().catch(() => {});
-      await this.page.waitForTimeout(1000);
+      await this.page.waitForTimeout(500);
     }
     await this.waitForPersonalPageLoad();
   }
@@ -204,7 +200,7 @@ export class IqiyiLibraryPage extends BasePage {
     const editBtn = wrap.locator('button.edit, button:has-text("Edit"), button:has-text("Sửa"), button:has-text("Quản lý"), button.bXyydC').first();
     await editBtn.waitFor({ state: 'visible', timeout: 5000 });
     await editBtn.click({ force: true }).catch(() => editBtn.evaluate(el => (el as HTMLElement).click()));
-    await this.page.waitForTimeout(1500);
+    await this.page.waitForTimeout(500);
   }
 
   async clickCancelButton() {
@@ -212,7 +208,7 @@ export class IqiyiLibraryPage extends BasePage {
     const cancelBtn = wrap.locator('button.cancel, button:has-text("Cancel"), button:has-text("Hủy"), button.hhtJql').first();
     await cancelBtn.waitFor({ state: 'visible', timeout: 5000 });
     await cancelBtn.click({ force: true }).catch(() => cancelBtn.evaluate(el => (el as HTMLElement).click()));
-    await this.page.waitForTimeout(1500);
+    await this.page.waitForTimeout(500);
   }
 
   async clickSelectAll() {
@@ -231,7 +227,7 @@ export class IqiyiLibraryPage extends BasePage {
       if (await el.isVisible().catch(() => false)) {
         await el.click({ force: true }).catch(() => el.evaluate(e => (e as HTMLElement).click()));
         console.log(`✅ Đã click Select All bằng selector: ${sel}`);
-        await this.page.waitForTimeout(1500);
+        await this.page.waitForTimeout(500);
         return;
       }
     }
@@ -243,7 +239,7 @@ export class IqiyiLibraryPage extends BasePage {
     const itemCheckbox = wrap.locator(`[rseat="select_${index}"]`).first();
     await itemCheckbox.waitFor({ state: 'visible', timeout: 5000 });
     await itemCheckbox.click({ force: true }).catch(() => itemCheckbox.evaluate(el => (el as HTMLElement).click()));
-    await this.page.waitForTimeout(2000); // Đợi UI cập nhật trạng thái click
+    await this.page.waitForTimeout(500); // Đợi UI cập nhật trạng thái click
   }
 
   async clickDeleteButton() {
@@ -251,13 +247,25 @@ export class IqiyiLibraryPage extends BasePage {
     const deleteBtn = wrap.locator('button:has-text("Delete"), button:has-text("Xóa"), button.bXyydC').first();
     await deleteBtn.waitFor({ state: 'visible', timeout: 5000 });
     await deleteBtn.click({ force: true }).catch(() => deleteBtn.evaluate(el => (el as HTMLElement).click()));
-    await this.page.waitForTimeout(1500);
+    await this.page.waitForTimeout(500);
 
     // Click confirm Delete in the modal
     const confirmDeleteBtn = this.page.locator('button.grtSyS, .cancel-btn + button').first();
     if (await confirmDeleteBtn.isVisible().catch(() => false)) {
       await confirmDeleteBtn.click({ force: true }).catch(() => confirmDeleteBtn.evaluate(el => (el as HTMLElement).click()));
-      await this.page.waitForTimeout(3000);
+      await this.page.waitForTimeout(1500);
+    }
+  }
+
+  /**
+   * Gom logic Click Edit -> Select All -> Delete (dùng cho cleanup)
+   */
+  async clearAllItems() {
+    const editBtn = (await this.getWrapRightLocator()).locator('button.edit, button:has-text("Edit"), button:has-text("Sửa"), button:has-text("Quản lý"), button.bXyydC').first();
+    if (await editBtn.isVisible().catch(() => false)) {
+      await this.clickEditButton();
+      await this.clickSelectAll();
+      await this.clickDeleteButton();
     }
   }
 }

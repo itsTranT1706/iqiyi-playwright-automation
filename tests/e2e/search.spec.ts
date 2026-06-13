@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { BasePage } from '../../pages/BasePage';
 
 test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
 
@@ -7,18 +8,10 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 
-  // Helper chấp nhận cookies nếu hiển thị
-  const acceptCookies = async (page) => {
-    const acceptBtn = page.locator('text=Chấp nhận tất cả Cookies, text=Accept All Cookies, .cookie-accept-btn').first();
-    if (await acceptBtn.isVisible().catch(() => false)) {
-      await acceptBtn.click();
-      await page.waitForTimeout(1000);
-    }
-  };
-
   test('TC2.1: Tìm kiếm từ khóa hợp lệ', async ({ page }) => {
+    const basePage = new BasePage(page);
     await page.goto('https://www.iq.com/?lang=vi_vn', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await acceptCookies(page);
+    await basePage.dismissCookies();
 
     // Tìm ô tìm kiếm
     const searchInput = page.locator('input[rseat="search_box"], input.search-input, input[placeholder*="tìm kiếm" i], input[placeholder*="search" i]').first();
@@ -37,17 +30,10 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     await page.waitForURL(/search/, { timeout: 30000 });
     // Chờ kết quả tìm kiếm hiển thị
     await expect.poll(async () => {
-      return await page.evaluate(() => {
-        const links = Array.from(document.querySelectorAll('a[href*="/album/"], a[href*="/play/"]'));
-        return links.filter(a => {
-          const rect = a.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-        }).length;
-      });
+      return await page.locator('a[href*="/album/"]:visible, a[href*="/play/"]:visible').count();
     }, {
       message: 'Đợi kết quả tìm kiếm hiển thị',
-      timeout: 15000,
-      intervals: [1000, 2000, 3000]
+      timeout: 15000
     }).toBeGreaterThan(0);
   });
 
@@ -56,27 +42,23 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await page.waitForTimeout(3000);
 
-    const visibleResults = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a[href*="/album/"], a[href*="/play/"]'));
-      return links.filter(a => {
-        const rect = a.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      }).length;
-    });
+    const linksLocator = page.locator('a[href*="/album/"]:visible, a[href*="/play/"]:visible');
 
-    const hasNoResultText = await page.evaluate(() => {
-      const text = document.body.innerText;
-      return text.includes('Rất tiếc') ||
+    let hasNoResultText = false;
+    await expect.poll(async () => {
+      const text = await page.locator('body').innerText();
+      hasNoResultText = text.includes('Rất tiếc') ||
              text.includes('Không tìm thấy') ||
              text.includes('không tìm thấy') ||
              text.includes('Không có kết quả') ||
              text.includes('No results') ||
              text.includes('No relevant') ||
              text.includes('Không có nội dung liên quan');
-    });
+      return hasNoResultText;
+    }, { timeout: 10000 }).toBe(true);
 
+    const visibleResults = await linksLocator.count();
     console.log(`TC2.2: Kết quả không tồn tại: visibleResults=${visibleResults}, hasNoResultText=${hasNoResultText}`);
     expect(visibleResults === 0 || hasNoResultText).toBe(true);
   });
@@ -87,7 +69,6 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await page.waitForTimeout(3000);
 
     // Xác nhận không crash trang và không chạy script (không có alert nào hiển thị)
     const pageTitle = await page.title();
@@ -101,8 +82,9 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
   });
 
   test('TC2.4: Tìm kiếm khi offline & Khôi phục khi online', async ({ page, context }) => {
+    const basePage = new BasePage(page);
     await page.goto('https://www.iq.com/?lang=vi_vn', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await acceptCookies(page);
+    await basePage.dismissCookies();
 
     // Ngắt mạng
     await context.setOffline(true);
@@ -112,9 +94,7 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       await searchInput.click();
       await searchInput.fill('drama');
       await searchInput.press('Enter');
-
-      // Chờ mạng báo offline hoặc hiển thị lỗi
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(1000);
     } finally {
       // Bật lại mạng
       await context.setOffline(false);
@@ -122,29 +102,22 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     
     // Tải lại trang hoặc tìm kiếm lại
     await page.goto('https://www.iq.com/search?query=drama&lang=vi_vn', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(2000);
 
-    const visibleResults = await page.evaluate(() => {
-      const links = Array.from(document.querySelectorAll('a[href*="/album/"], a[href*="/play/"]'));
-      return links.filter(a => {
-        const rect = a.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      }).length;
-    });
-    expect(visibleResults).toBeGreaterThan(0);
+    await expect.poll(async () => {
+      return await page.locator('a[href*="/album/"]:visible, a[href*="/play/"]:visible').count();
+    }, { timeout: 10000 }).toBeGreaterThan(0);
   });
 
   test('TC2.5: Bộ lọc sâu kết hợp nhiều tiêu chí Free', async ({ page }) => {
+    const basePage = new BasePage(page);
     // Đến thư viện phim bộ (chnid=2)
     await page.goto('https://www.iq.com/film-library?chnid=2&lang=vi_vn', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await acceptCookies(page);
-    await page.waitForTimeout(3000);
+    await basePage.dismissCookies();
 
     // Lọc Thể loại, Khu vực hoặc Năm
-    // Selector các nhãn lọc thường là các thẻ div hoặc span chứa chữ tương ứng
     const filterLabels = page.locator('.second-label-current, .filter-item, .label-item');
     await expect(filterLabels.first()).toBeVisible({ timeout: 15000 });
 
@@ -152,7 +125,6 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     const koreaFilter = page.locator('text=Hàn Quốc, text=South Korea').first();
     if (await koreaFilter.isVisible().catch(() => false)) {
       await koreaFilter.click();
-      await page.waitForTimeout(2000);
       console.log('TC2.5: Đã chọn bộ lọc Hàn Quốc');
     }
 
@@ -160,23 +132,15 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     const romanceFilter = page.locator('text=Tình cảm, text=Romance, text=Lãng mạn').first();
     if (await romanceFilter.isVisible().catch(() => false)) {
       await romanceFilter.click();
-      await page.waitForTimeout(2000);
       console.log('TC2.5: Đã chọn bộ lọc Tình cảm');
     }
 
     // Xác nhận danh sách phim hiển thị > 0
     await expect.poll(async () => {
-      return await page.evaluate(() => {
-        const cards = Array.from(document.querySelectorAll('a[href*="/album/"]'));
-        return cards.filter(c => {
-          const rect = c.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-        }).length;
-      });
+      return await page.locator('a[href*="/album/"]:visible').count();
     }, {
       message: 'Đợi danh sách phim hiển thị sau khi lọc sâu',
-      timeout: 20000,
-      intervals: [2000, 3000, 5000]
+      timeout: 20000
     }).toBeGreaterThan(0);
   });
 
@@ -185,10 +149,7 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await page.waitForTimeout(3000);
 
-    // Lấy danh sách các bộ lọc quốc gia để click đổi liên tiếp
-    const filterItems = page.locator('text=Hàn Quốc, text=Trung Quốc Đại Lục, text=Thái Lan');
     const korea = page.locator('text=Hàn Quốc, text=South Korea').first();
     const china = page.locator('text=Trung Quốc Đại Lục, text=Chinese Mainland').first();
 
@@ -199,16 +160,11 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       await china.click();
       await page.waitForTimeout(100);
       await korea.click(); // Click cuối cùng là Hàn Quốc
-      await page.waitForTimeout(2000);
 
       // Xác nhận kết quả hiển thị của bộ lọc cuối cùng thành công
-      const visibleCount = await page.evaluate(() => {
-        return Array.from(document.querySelectorAll('a[href*="/album/"]')).filter(a => {
-          const rect = a.getBoundingClientRect();
-          return rect.width > 0 && rect.height > 0;
-        }).length;
-      });
-      expect(visibleCount).toBeGreaterThan(0);
+      await expect.poll(async () => {
+        return await page.locator('a[href*="/album/"]:visible').count();
+      }, { timeout: 10000 }).toBeGreaterThan(0);
     } else {
       console.log('TC2.6: Các nhãn bộ lọc quốc gia không hiển thị, bỏ qua click spam');
     }
@@ -219,33 +175,28 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await page.waitForTimeout(3000);
 
     const korea = page.locator('text=Hàn Quốc, text=South Korea').first();
     if (await korea.isVisible().catch(() => false)) {
       await korea.click();
-      await page.waitForTimeout(2000);
 
       // Bấm nút "Tất cả" hoặc nút xóa lọc cùng dòng
-      // Nhãn "Tất cả" thường là lựa chọn mặc định đầu tiên của dòng lọc khu vực
       const allBtn = page.locator('text=Tất cả, text=All').first();
-      if (await allBtn.isVisible().catch(() => false)) {
-        await allBtn.click();
-        await page.waitForTimeout(2000);
-        console.log('TC2.7: Đã xóa lọc về trạng thái Tất cả');
-      }
+      await expect(allBtn).toBeVisible({ timeout: 5000 });
+      await allBtn.click();
+      console.log('TC2.7: Đã xóa lọc về trạng thái Tất cả');
     }
   });
 
   test('TC2.8: Gợi ý tìm kiếm khi nhập liệu', async ({ page }) => {
+    const basePage = new BasePage(page);
     await page.goto('https://www.iq.com/?lang=vi_vn', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await acceptCookies(page);
+    await basePage.dismissCookies();
 
     const searchInput = page.locator('input[rseat="search_box"], input.search-input, input[placeholder*="tìm kiếm" i]').first();
     await searchInput.waitFor({ state: 'visible' });
     await searchInput.click();
     await searchInput.fill('de');
-    await page.waitForTimeout(1500);
 
     // Kiểm tra menu gợi ý xuất hiện (class hoặc thẻ li)
     const suggestions = page.locator('.suggest-list, .search-suggest, [class*="suggest"], li[class*="suggest"]').first();
@@ -266,12 +217,11 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await page.waitForTimeout(4000);
 
-    // Đếm số lượng phim trước khi cuộn
-    const initialCount = await page.evaluate(() => {
-      return document.querySelectorAll('a[href*="/album/"]').length;
-    });
+    // Chờ ít nhất một phim hiển thị trong DOM
+    const movies = page.locator('a[href*="/album/"]');
+    await movies.first().waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+    const initialCount = await movies.count();
     console.log(`TC2.9: Số phim ban đầu: ${initialCount}`);
 
     // Cuộn xuống cuối trang
@@ -281,9 +231,7 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     await page.waitForTimeout(3000);
 
     // Đếm lại số lượng phim
-    const scrolledCount = await page.evaluate(() => {
-      return document.querySelectorAll('a[href*="/album/"]').length;
-    });
+    const scrolledCount = await movies.count();
     console.log(`TC2.9: Số phim sau khi cuộn xuống: ${scrolledCount}`);
     
     if (scrolledCount > initialCount) {
@@ -299,42 +247,38 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
 
     // 1. Vào trang chủ
     await page.goto('https://www.iq.com/?lang=vi_vn', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(2000);
 
     // 2. Click vào ô search rồi GÕ từ khóa (không dùng URL trực tiếp)
     const searchInput = page.locator('input[rseat="search_box"], input.search-input, input[placeholder*="tìm kiếm" i]').first();
     await searchInput.click();
-    await page.waitForTimeout(500);
     await searchInput.fill(uniqueKeyword);
-    await page.waitForTimeout(500);
 
     // 3. Nhấn Enter để tìm kiếm (trigger lưu lịch sử)
     await searchInput.press('Enter');
-    await page.waitForTimeout(3000);
+    await page.waitForURL(/search/, { timeout: 15000 });
 
     // 4. Quay lại trang chủ
     await page.goto('https://www.iq.com/?lang=vi_vn', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForTimeout(2000);
 
     // 5. Click vào ô tìm kiếm để mở dropdown lịch sử gần đây
     await searchInput.click();
-    await page.waitForTimeout(1500);
 
     // 6. Xác nhận từ khóa xuất hiện trong lịch sử
-    const pageText = await page.evaluate(() => document.body.innerText);
-    const isSaved = pageText.includes(uniqueKeyword);
-    console.log(`TC2.10: Từ khóa được lưu trong lịch sử gần đây: ${isSaved}`);
+    let isSaved = false;
+    await expect.poll(async () => {
+      const pageText = await page.locator('body').innerText();
+      isSaved = pageText.includes(uniqueKeyword);
+      return isSaved;
+    }, { timeout: 10000 }).toBe(true);
 
-    if (!isSaved) {
-      console.log('⚠️ Cảnh báo: Lịch sử tìm kiếm gần đây không đồng bộ sau khi tìm qua search box.');
-    }
-    // Ghi nhận kết quả, không throw để tránh false negative do headless browser
+    console.log(`TC2.10: Từ khóa được lưu trong lịch sử gần đây: ${isSaved}`);
   });
 
   test('TC2.11: Race Condition khi nhập nhanh trên mạng chậm (CDP Throttling)', async ({ page }) => {
+    const basePage = new BasePage(page);
     // 1. Điều hướng đến trang chủ trước ở mạng bình thường
     await page.goto('https://www.iq.com/?lang=vi_vn', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await acceptCookies(page);
+    await basePage.dismissCookies();
 
     const searchInput = page.locator('input[rseat="search_box"], input.search-input, input[placeholder*="tìm kiếm" i]').first();
     await searchInput.waitFor({ state: 'visible' });
@@ -352,7 +296,7 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       // 3. Gõ nhanh từ khóa thứ nhất ("ha") rồi ngay lập tức gõ từ khóa thứ hai ("hài")
       await searchInput.click();
       await searchInput.fill('ha');
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(50);
       await searchInput.fill('hài');
       
       const searchBtn = page.locator('div.search-btn, .search-btn, .search-icon, button:has(img[src*="search"])').first();
@@ -389,47 +333,47 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
   });
 
   test('TC2.12: Giữ nguyên bộ lọc khi quay lại (Filter State Back)', async ({ page }) => {
+    const basePage = new BasePage(page);
     await page.goto('https://www.iq.com/film-library?chnid=2&lang=vi_vn', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await acceptCookies(page);
-    await page.waitForTimeout(3000);
+    await basePage.dismissCookies();
 
     const korea = page.locator('text=Hàn Quốc, text=South Korea').first();
     if (await korea.isVisible().catch(() => false)) {
       await korea.click();
-      await page.waitForTimeout(3000);
 
       // Click vào phim đầu tiên
       const firstMovie = page.locator('a[href*="/album/"]').first();
       await firstMovie.click();
       await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-      await page.waitForTimeout(2000);
 
       // Nhấn Back quay lại trang thư viện
       await page.goBack();
-      await page.waitForTimeout(3000);
 
       // Xác nhận bộ lọc Hàn Quốc vẫn đang được kích hoạt (thường có class active/selected)
-      const isKoreaActive = await korea.evaluate(el => {
-        const cls = el.className;
-        return cls.includes('active') || cls.includes('current') || cls.includes('select') || el.getAttribute('style') !== null;
-      }).catch(() => true); // Fallback pass nếu không inspect được style động
+      let isKoreaActive = false;
+      await expect.poll(async () => {
+        isKoreaActive = await korea.evaluate(el => {
+          const cls = el.className;
+          return cls.includes('active') || cls.includes('current') || cls.includes('select') || el.getAttribute('style') !== null;
+        }).catch(() => true);
+        return isKoreaActive;
+      }, { timeout: 10000 }).toBe(true);
       
       console.log(`TC2.12: Bộ lọc được khôi phục sau Back: ${isKoreaActive}`);
-      expect(isKoreaActive).toBe(true);
     }
   });
 
   test('TC2.13: Hiển thị nội dung VIP và Upsell với tài khoản Free', async ({ page }) => {
+    const basePage = new BasePage(page);
     // Mở trang kết quả tìm kiếm có nội dung phong phú
     await page.goto('https://www.iq.com/search?query=drama&lang=vi_vn', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await acceptCookies(page);
-    await page.waitForTimeout(3000);
+    await basePage.dismissCookies();
 
     // Xác nhận nội dung VIP có huy hiệu (VIP badge/tag) hiển thị trên giao diện kết quả
     const vipBadge = page.locator('.mod-vip, .vip-badge, [class*="vip"], [class*="VIP"]').first();
@@ -444,15 +388,16 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       } else {
         await vipBadge.click();
       }
-      await page.waitForTimeout(3000);
 
       // Xác nhận hệ thống hiển thị bảng giá/popup mời nâng cấp VIP (Upsell) thay vì lỗi 403
-      const upsellPrompt = await page.evaluate(() => {
-        const text = document.body.innerText;
-        return text.includes('VIP') || text.includes('Gói') || text.includes('Đăng ký') || text.includes('Subscribe') || text.includes('Join');
-      });
+      let upsellPrompt = false;
+      await expect.poll(async () => {
+        const text = await page.locator('body').innerText();
+        upsellPrompt = text.includes('VIP') || text.includes('Gói') || text.includes('Đăng ký') || text.includes('Subscribe') || text.includes('Join');
+        return upsellPrompt;
+      }, { timeout: 10000 }).toBe(true);
+
       console.log(`TC2.13: Hiển thị bảng nâng cấp VIP: ${upsellPrompt}`);
-      expect(upsellPrompt).toBe(true);
     } else {
       console.log('TC2.13: Không có phim VIP hiển thị trong trang kết quả này, hoàn thành test case.');
     }
@@ -464,27 +409,33 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await page.waitForTimeout(3000);
     
-    const KoreanResults = await page.evaluate(() => {
-      return Array.from(document.querySelectorAll('a[href*="/album/"]')).length;
-    });
-    console.log(`TC2.14: Tìm thấy ${KoreanResults} kết quả cho tiếng Hàn "드라마"`);
-    expect(KoreanResults).toBeGreaterThan(0);
+    let count = 0;
+    await expect.poll(async () => {
+      count = await page.locator('a[href*="/album/"]:visible').count();
+      return count;
+    }, { timeout: 10000 }).toBeGreaterThan(0);
+
+    console.log(`TC2.14: Tìm thấy ${count} kết quả cho tiếng Hàn "드라마"`);
   });
 
   test('TC2.15: Đồng nhất ngôn ngữ hiển thị bản dịch theo tham số ?lang trên URL', async ({ page }) => {
+    const basePage = new BasePage(page);
     // 1. Mở tìm kiếm phim tiếng Anh khi lang=vi_vn
     await page.goto('https://www.iq.com/search?query=Descendants%20of%20the%20sun&lang=vi_vn', {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await acceptCookies(page);
-    await page.waitForTimeout(3000);
+    await basePage.dismissCookies();
 
     // Xác nhận tiêu đề phim được dịch sang tiếng Việt ("Hậu duệ mặt trời")
-    const viText = await page.evaluate(() => document.body.innerText);
-    const hasViTitle = viText.includes('Hậu duệ mặt trời') || viText.includes('Hậu Duệ');
+    let hasViTitle = false;
+    for (let i = 0; i < 10; i++) {
+      const viText = await page.locator('body').innerText();
+      hasViTitle = viText.includes('Hậu duệ mặt trời') || viText.includes('Hậu Duệ');
+      if (hasViTitle) break;
+      await page.waitForTimeout(500);
+    }
     console.log(`TC2.15: Hiển thị tiêu đề Tiếng Việt khi lang=vi_vn: ${hasViTitle}`);
 
     // 2. Chuyển sang lang=en_us
@@ -492,11 +443,15 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       waitUntil: 'domcontentloaded',
       timeout: 60000
     });
-    await page.waitForTimeout(3000);
 
     // Xác nhận tiêu đề phim hiển thị bằng tiếng Anh ("Descendants of the Sun")
-    const enText = await page.evaluate(() => document.body.innerText);
-    const hasEnTitle = enText.includes('Descendants of the Sun') || enText.includes('Descendants');
+    let hasEnTitle = false;
+    for (let i = 0; i < 10; i++) {
+      const enText = await page.locator('body').innerText();
+      hasEnTitle = enText.includes('Descendants of the Sun') || enText.includes('Descendants');
+      if (hasEnTitle) break;
+      await page.waitForTimeout(500);
+    }
     console.log(`TC2.15: Hiển thị tiêu đề Tiếng Anh khi lang=en_us: ${hasEnTitle}`);
 
     expect(hasViTitle || hasEnTitle).toBe(true);

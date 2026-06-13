@@ -10,14 +10,6 @@ test.describe('iQIYI E2E: Trình phát Video (Video Player)', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
   });
 
-  const acceptCookies = async (page) => {
-    const acceptBtn = page.locator('text=Chấp nhận tất cả Cookies, text=Accept All Cookies, .cookie-accept-btn').first();
-    if (await acceptBtn.isVisible().catch(() => false)) {
-      await acceptBtn.click();
-      await page.waitForTimeout(1000);
-    }
-  };
-
   test('TC1.1: Phát video bình thường', async ({ page }) => {
     const player = new IqiyiPlayerPage(page);
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);

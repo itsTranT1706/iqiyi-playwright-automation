@@ -178,12 +178,10 @@ export class IqiyiLibraryPage extends BasePage {
     const emptyText = wrap.locator('text=/No Watch History|No Watch Later|Chưa có lịch sử|Trống|Empty/i').first();
     const item = wrap.locator('.collect-item, .collect-item-wrap, .album-item').first();
     
-    for (let i = 0; i < 10; i++) {
-      if (await emptyText.isVisible().catch(() => false) || await item.isVisible().catch(() => false)) {
-        break;
-      }
-      await this.page.waitForTimeout(500);
-    }
+    await Promise.race([
+      emptyText.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {}),
+      item.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {})
+    ]);
 
     // Kiểm tra xem có hiển thị trống không
     if (await emptyText.isVisible().catch(() => false)) {

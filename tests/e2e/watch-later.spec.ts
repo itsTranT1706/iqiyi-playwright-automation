@@ -6,6 +6,7 @@ import * as fs from 'fs';
 const TEST_VIDEO_URL = 'https://www.iq.com/play/descendants-of-the-sun-tap-1-19rrhyq7ph?lang=vi_vn';
 
 test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
+  test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -14,6 +15,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   // Removed local acceptCookies helper in favor of library.dismissCookies()
 
   test('TC4.1: Thêm phim vào Xem sau thành công', async ({ page }) => {
+    test.setTimeout(120000);
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
@@ -51,6 +53,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.2: Hủy phim khỏi Xem sau từ trang xem phim', async ({ page }) => {
+    test.setTimeout(120000);
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
@@ -61,6 +64,9 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
       await player.addToWatchLater();
       await expect.poll(async () => await player.isWatchLaterAdded(), { timeout: 10000 }).toBe(true);
     }
+
+    // Chờ 2 giây để trạng thái API/UI ổn định tránh lỗi click quá nhanh (debounce)
+    await page.waitForTimeout(2000);
 
     // 2. Hủy thêm xem sau từ player
     await player.addToWatchLater(); // Toggle off
@@ -96,16 +102,12 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
     for (let i = 0; i < 5; i++) {
       await collectBtn.click({ force: true }).catch(() => {});
       
-      // Chờ trạng thái đồng bộ chuyển đổi (tối đa 5 giây)
+      // Chờ trạng thái đồng bộ chuyển đổi (tối đa 10 giây) bằng expect.poll
       const targetState = !currentState;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await page.waitForTimeout(500);
-        const state = await player.isWatchLaterAdded();
-        if (state === targetState) {
-          currentState = state;
-          break;
-        }
-      }
+      await expect.poll(async () => {
+        return await player.isWatchLaterAdded();
+      }, { timeout: 10000 }).toBe(targetState);
+      currentState = targetState;
       console.log(`TC4.3: Lần click thứ ${i + 1}, trạng thái đạt được: ${currentState}`);
       // Thêm 1.5 giây để tránh lỗi debounce của iQIYI
       await page.waitForTimeout(1500);
@@ -118,6 +120,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.4: Thêm vào Xem sau khi mất mạng đột ngột', async ({ page, context }) => {
+    test.setTimeout(120000);
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
@@ -151,6 +154,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.5: Sắp xếp thứ tự danh sách Xem sau', async ({ page }) => {
+    test.setTimeout(120000);
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
@@ -188,6 +192,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.6: Xóa phim khỏi Xem sau trực tiếp từ trang danh sách', async ({ page }) => {
+    test.setTimeout(120000);
     const library = new IqiyiLibraryPage(page);
 
     // 1. Dọn dẹp Xem sau để kiểm tra chính xác
@@ -220,6 +225,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.7: Chọn và xóa hàng loạt trong danh sách Xem sau', async ({ page }) => {
+    test.setTimeout(120000);
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
@@ -311,6 +317,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.10: Đồng bộ trạng thái Xem sau trên các tab khác nhau', async ({ page, context }) => {
+    test.setTimeout(120000);
     const player1 = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
@@ -348,6 +355,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.11: Tránh trùng lặp khi mạng chập chờn (API Deduplication)', async ({ page }) => {
+    test.setTimeout(120000);
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 
@@ -386,6 +394,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.12: Xóa Stale Cache khi chuyển đổi tài khoản (Đăng xuất)', async ({ page, context }) => {
+    test.setTimeout(120000);
     const library = new IqiyiLibraryPage(page);
     await library.goToCollections();
     await library.dismissCookies();
@@ -410,6 +419,7 @@ test.describe('iQIYI E2E: Xem sau (Watch Later / Favorites)', () => {
   });
 
   test('TC4.13: Lưu Series phim so với Tập đơn lẻ', async ({ page }) => {
+    test.setTimeout(120000);
     const player = new IqiyiPlayerPage(page);
     const library = new IqiyiLibraryPage(page);
 

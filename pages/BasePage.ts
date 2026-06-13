@@ -12,7 +12,7 @@ export class BasePage {
   }
 
   async waitForElement(selector: string) {
-    await this.page.waitForSelector(selector);
+    await this.page.locator(selector).waitFor();
   }
 
   async getTitle() {

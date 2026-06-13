@@ -228,16 +228,21 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     await page.evaluate(() => {
       window.scrollTo(0, document.body.scrollHeight);
     });
-    await page.waitForTimeout(3000);
 
-    // Đếm lại số lượng phim
-    const scrolledCount = await movies.count();
+    // Đếm lại số lượng phim bằng expect.poll
+    let scrolledCount = initialCount;
+    try {
+      await expect.poll(async () => {
+        scrolledCount = await movies.count();
+        return scrolledCount;
+      }, { timeout: 10000 }).toBeGreaterThan(initialCount);
+    } catch (e) {
+      console.log('⚠️ Không tải thêm phim mới, có thể đã đạt giới hạn danh sách.');
+    }
     console.log(`TC2.9: Số phim sau khi cuộn xuống: ${scrolledCount}`);
     
     if (scrolledCount > initialCount) {
       expect(scrolledCount).toBeGreaterThan(initialCount);
-    } else {
-      console.log('⚠️ Không tải thêm phim mới, có thể đã đạt giới hạn danh sách.');
     }
   });
 
@@ -347,7 +352,7 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
       // Click vào phim đầu tiên
       const firstMovie = page.locator('a[href*="/album/"]').first();
       await firstMovie.click();
-      await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+      await page.waitForURL(/\/album\//, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
 
       // Nhấn Back quay lại trang thư viện
       await page.goBack();
@@ -419,8 +424,15 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     console.log(`TC2.14: Tìm thấy ${count} kết quả cho tiếng Hàn "드라마"`);
   });
 
-  test('TC2.15: Đồng nhất ngôn ngữ hiển thị bản dịch theo tham số ?lang trên URL', async ({ page }) => {
+  test('TC2.15: Đồng nhất ngôn ngữ hiển thị bản dịch theo tham số ?lang trên URL', async ({ browser }) => {
+    // Tạo context mới không có auth.json và đặt locale vi-VN để tránh bị ghi đè ngôn ngữ bởi cài đặt tài khoản
+    const context = await browser.newContext({ 
+      storageState: { cookies: [], origins: [] },
+      locale: 'vi-VN'
+    });
+    const page = await context.newPage();
     const basePage = new BasePage(page);
+
     // 1. Mở tìm kiếm phim tiếng Anh khi lang=vi_vn
     await page.goto('https://www.iq.com/search?query=Descendants%20of%20the%20sun&lang=vi_vn', {
       waitUntil: 'domcontentloaded',
@@ -430,12 +442,11 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
 
     // Xác nhận tiêu đề phim được dịch sang tiếng Việt ("Hậu duệ mặt trời")
     let hasViTitle = false;
-    for (let i = 0; i < 10; i++) {
+    await expect.poll(async () => {
       const viText = await page.locator('body').innerText();
-      hasViTitle = viText.includes('Hậu duệ mặt trời') || viText.includes('Hậu Duệ');
-      if (hasViTitle) break;
-      await page.waitForTimeout(500);
-    }
+      hasViTitle = viText.toLowerCase().includes('hậu duệ mặt trời') || viText.toLowerCase().includes('hậu duệ');
+      return hasViTitle;
+    }, { timeout: 15000 }).toBe(true);
     console.log(`TC2.15: Hiển thị tiêu đề Tiếng Việt khi lang=vi_vn: ${hasViTitle}`);
 
     // 2. Chuyển sang lang=en_us
@@ -446,15 +457,15 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
 
     // Xác nhận tiêu đề phim hiển thị bằng tiếng Anh ("Descendants of the Sun")
     let hasEnTitle = false;
-    for (let i = 0; i < 10; i++) {
+    await expect.poll(async () => {
       const enText = await page.locator('body').innerText();
-      hasEnTitle = enText.includes('Descendants of the Sun') || enText.includes('Descendants');
-      if (hasEnTitle) break;
-      await page.waitForTimeout(500);
-    }
+      hasEnTitle = enText.toLowerCase().includes('descendants of the sun') || enText.toLowerCase().includes('descendants');
+      return hasEnTitle;
+    }, { timeout: 15000 }).toBe(true);
     console.log(`TC2.15: Hiển thị tiêu đề Tiếng Anh khi lang=en_us: ${hasEnTitle}`);
 
     expect(hasViTitle || hasEnTitle).toBe(true);
+    await context.close();
   });
 
 });

@@ -5,6 +5,7 @@ import { IqiyiLibraryPage } from '../../pages/IqiyiLibraryPage';
 const TEST_VIDEO_URL = 'https://www.iq.com/play/descendants-of-the-sun-tap-1-19rrhyq7ph?lang=vi_vn';
 
 test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
+  test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -53,6 +54,9 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
       console.log('TC3.2: Khôi phục mạng...');
       await context.setOffline(false);
     }
+
+    // Đi tới trang lịch sử để kiểm tra
+    await library.goToHistory();
 
     let firstTitle = '';
     await expect.poll(async () => {

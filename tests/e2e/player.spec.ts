@@ -148,11 +148,13 @@ test.describe('iQIYI E2E: Trình phát Video (Video Player)', () => {
     // Ngắt kết nối mạng
     console.log('TC1.4: Ngắt kết nối mạng...');
     await context.setOffline(true);
-    await page.waitForTimeout(4000);
-
-    // Kết nối mạng trở lại
-    console.log('TC1.4: Bật lại kết nối mạng...');
-    await context.setOffline(false);
+    try {
+      await page.waitForTimeout(4000);
+    } finally {
+      // Kết nối mạng trở lại
+      console.log('TC1.4: Bật lại kết nối mạng...');
+      await context.setOffline(false);
+    }
     await page.waitForTimeout(5000); // Chờ tự động reload hoặc tiếp tục phát
 
     // Phát tiếp phim nếu bị pause do mất mạng
@@ -358,11 +360,13 @@ test.describe('iQIYI E2E: Trình phát Video (Video Player)', () => {
     // Giả sử quảng cáo đang chạy, ngắt mạng lập tức
     console.log('TC1.12: Ngắt mạng khi quảng cáo đang chạy...');
     await context.setOffline(true);
-    await page.waitForTimeout(4000);
-
-    // Khôi phục mạng
-    console.log('TC1.12: Bật lại mạng...');
-    await context.setOffline(false);
+    try {
+      await page.waitForTimeout(4000);
+    } finally {
+      // Khôi phục mạng
+      console.log('TC1.12: Bật lại mạng...');
+      await context.setOffline(false);
+    }
     await page.waitForTimeout(5000);
 
     // Chờ hoàn thành quảng cáo hoặc bỏ qua

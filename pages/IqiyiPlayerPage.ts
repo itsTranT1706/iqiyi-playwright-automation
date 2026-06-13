@@ -86,9 +86,12 @@ export class IqiyiPlayerPage extends BasePage {
     }
 
     // Chờ thẻ video xuất hiện
-    await this.page.locator('video').first().waitFor({ state: 'attached', timeout: 20000 });
+    await this.page.locator('video').first().waitFor({ state: 'attached', timeout: 35000 });
     // Chờ quảng cáo kết thúc
     await this.waitForAdToFinish();
+
+    // Chờ thêm để event listeners của React/JS được bind hoàn toàn và trang ổn định
+    await this.page.waitForTimeout(5000);
   }
 
   /**
@@ -182,17 +185,41 @@ export class IqiyiPlayerPage extends BasePage {
   }
 
   /**
-   * Kiểm tra xem video đã được thêm vào Watch Later hay chưa
+   * Kiểm tra xem video đã được thêm vào Watch Later hay chưa (Watch Later status)
+   * iQIYI sử dụng các icon khác nhau trong các div ẩn/hiện để biểu thị trạng thái:
+   * - Đã thêm (Added): div hiển thị chứa ảnh có src chứa 'remove' (ví dụ: icon_remove_green hoặc icon_remove_gray)
+   * - Chưa thêm (Not Added): div hiển thị chứa ảnh có src chứa 'watch' (ví dụ: icon_watch_green hoặc icon_watch_gray)
+   * Ngoài ra, thuộc tính rseat trên .collection-wrap cũng đổi tương ứng: 'cancel' (đã thêm) vs 'join' (chưa thêm)
    */
   async isWatchLaterAdded(): Promise<boolean> {
+    const collectBtn = this.page.locator('.collection-wrap').first();
+    await collectBtn.waitFor({ state: 'attached', timeout: 5000 }).catch(() => {});
+    
+    // Cách 1: Đọc thuộc tính rseat từ DOM (cancel = đã thêm, join = chưa thêm)
+    const rseat = await collectBtn.getAttribute('rseat').catch(() => '');
+    if (rseat === 'cancel') return true;
+    if (rseat === 'join') return false;
+
+    // Cách 2 (Dự phòng): Phân tích thuộc tính src của hình ảnh hiển thị thực tế
     const isAdded = await this.page.evaluate(() => {
       const wrap = document.querySelector('.collection-wrap');
       if (!wrap) return false;
-      const img = wrap.querySelector('img');
+      
+      // Tìm div con trực tiếp đang hiển thị (style display !== 'none') và chứa img
+      const directChildren = Array.from(wrap.children);
+      const visibleDiv = directChildren.find(d => {
+        const style = window.getComputedStyle(d);
+        return style.display !== 'none' && d.querySelector('img');
+      });
+      if (!visibleDiv) return false;
+      
+      const img = visibleDiv.querySelector('img');
       if (!img) return false;
+      
       const src = img.getAttribute('src') || '';
-      return src.includes('green');
-    });
+      return src.includes('remove');
+    }).catch(() => false);
+
     return isAdded;
   }
 }

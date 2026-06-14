@@ -327,48 +327,6 @@ test.describe('iQIYI E2E: Trình phát Video (Video Player)', () => {
     await tab2.close();
   });
 
-  test.skip('TC1.12: Mất mạng khi đang chạy quảng cáo pre-roll', async ({ page, context }) => {
-    const player = new IqiyiPlayerPage(page);
-    
-    // Load trang
-    await page.goto(TEST_VIDEO_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    
-    // Chờ thẻ video xuất hiện
-    await page.locator('video').first().waitFor({ state: 'attached', timeout: 20000 });
-    
-    // Giả sử quảng cáo đang chạy, ngắt mạng lập tức
-    console.log('TC1.12: Ngắt mạng khi quảng cáo đang chạy...');
-    await context.setOffline(true);
-    try {
-      await page.waitForTimeout(2000);
-    } finally {
-      // Khôi phục mạng
-      console.log('TC1.12: Bật lại mạng...');
-      await context.setOffline(false);
-    }
-
-    // Chờ hoàn thành quảng cáo hoặc bỏ qua
-    await player.waitForAdToFinish();
-    
-    // Xác nhận video chính vẫn bắt đầu phát thành công sau khi phục hồi mạng
-    await expect.poll(async () => {
-      return await player.getCurrentPlaybackTime();
-    }, { timeout: 10000 }).toBeGreaterThanOrEqual(0);
-  });
-
-  test.skip('TC1.13: Quảng cáo giữa phim (Mid-roll ad) & tiếp tục phát', async ({ page }) => {
-    const player = new IqiyiPlayerPage(page);
-    await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
-
-    // Tua phim tới mốc 50% thời lượng (thường là mốc dễ có ad giữa phim)
-    await player.seekTo(50);
-
-    const isPlaying = await player.isPlaying();
-    const time = await player.getCurrentPlaybackTime();
-    console.log(`TC1.13: Phát phim ở mốc 50%: ${isPlaying}, Thời gian: ${time}s`);
-    expect(time).toBeGreaterThan(0);
-  });
-
   test('TC1.14: Xem lại phim từ Lịch sử', async ({ page }) => {
     const player = new IqiyiPlayerPage(page);
     await player.navigateAndWaitForPlayer(TEST_VIDEO_URL);
@@ -385,43 +343,38 @@ test.describe('iQIYI E2E: Trình phát Video (Video Player)', () => {
     expect(playbackTime).toBeGreaterThanOrEqual(0);
   });
 
-  test.skip('TC1.15: Chặn hành vi tua phim khi quảng cáo đang chạy', async ({ page }) => {
-    // 1. Mở trang phim (quảng cáo pre-roll sẽ chạy)
-    await page.goto(TEST_VIDEO_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.locator('video').first().waitFor({ state: 'attached', timeout: 20000 });
+  test.describe('Không cần đăng nhập (Guest Mode)', () => {
+    // Không dùng session đã lưu trong auth.json
+    test.use({ storageState: { cookies: [], origins: [] } });
 
-    // Tìm thẻ video của quảng cáo (thường có duration ngắn <= 60s)
-    const hasAdVideo = await page.evaluate(() => {
-      const adVideo = Array.from(document.querySelectorAll('video')).find(v => v.duration > 0 && v.duration <= 60);
-      return !!adVideo;
-    });
-
-    if (hasAdVideo) {
-      console.log('TC1.15: Quảng cáo đang chạy. Thử tua bằng cách thay đổi currentTime của video quảng cáo...');
+    test('TC1.12: Mất mạng khi đang chạy quảng cáo pre-roll', async ({ page, context }) => {
+      const player = new IqiyiPlayerPage(page);
       
-      const initialAdTime = await page.evaluate(() => {
-        const v = Array.from(document.querySelectorAll('video')).find(v => v.duration > 0 && v.duration <= 60);
-        return v ? v.currentTime : 0;
-      });
+      // Load trang dưới dạng khách vãng lai
+      await page.goto(TEST_VIDEO_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      
+      // Chờ thẻ video xuất hiện
+      await page.locator('video').first().waitFor({ state: 'attached', timeout: 20000 });
+      
+      // Giả sử quảng cáo đang chạy, ngắt mạng lập tức
+      console.log('TC1.12: Ngắt mạng khi quảng cáo đang chạy...');
+      await context.setOffline(true);
+      try {
+        await page.waitForTimeout(2000);
+      } finally {
+        // Khôi phục mạng
+        console.log('TC1.12: Bật lại mạng...');
+        await context.setOffline(false);
+      }
 
-      // Thử thay đổi currentTime của thẻ video quảng cáo lên 20s
-      await page.evaluate(() => {
-        const v = Array.from(document.querySelectorAll('video')).find(v => v.duration > 0 && v.duration <= 60);
-        if (v) v.currentTime = 20;
-      });
-      await page.waitForTimeout(1000);
-
-      const adTimeAfterSeek = await page.evaluate(() => {
-        const v = Array.from(document.querySelectorAll('video')).find(v => v.duration > 0 && v.duration <= 60);
-        return v ? v.currentTime : 0;
-      });
-
-      console.log(`TC1.15: Thời gian quảng cáo trước tua: ${initialAdTime}s, sau tua: ${adTimeAfterSeek}s`);
-      // Nếu tua bị chặn, currentTime của quảng cáo sẽ không tăng vọt hoặc được tự động khôi phục lại mốc cũ
-      expect(adTimeAfterSeek - initialAdTime).toBeLessThan(5.0); 
-    } else {
-      console.log('TC1.15: Không có quảng cáo chạy, bỏ qua test chặn tua.');
-    }
+      // Chờ hoàn thành quảng cáo hoặc bỏ qua
+      await player.waitForAdToFinish();
+      
+      // Xác nhận video chính vẫn bắt đầu phát thành công sau khi phục hồi mạng
+      await expect.poll(async () => {
+        return await player.getCurrentPlaybackTime();
+      }, { timeout: 10000 }).toBeGreaterThanOrEqual(0);
+    });
   });
 
 });

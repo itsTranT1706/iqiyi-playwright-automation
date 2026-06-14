@@ -49,16 +49,33 @@ export default defineConfig({
 
   projects: [
     // -------------------------------------------------------
+    // Setup Project — Đăng nhập & Lưu session trước khi chạy test
+    // -------------------------------------------------------
+    {
+      name: 'setup',
+      testMatch: /login\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        // Không dùng storageState đã lưu cũ để đảm bảo thực hiện login mới sạch sẽ
+        storageState: { cookies: [], origins: [] },
+      },
+    },
+
+    // -------------------------------------------------------
     // E2E Tests — Luồng người dùng đầu cuối (Chrome thật)
     // Chạy mặc định: npx playwright test
     // -------------------------------------------------------
     {
       name: 'E2E - Chrome',
       testDir: './tests/e2e',
+      testIgnore: /login\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         channel: 'chrome',
+        storageState: 'auth.json',
       },
+      dependencies: ['setup'],
     },
 
     /* 

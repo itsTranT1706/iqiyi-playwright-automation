@@ -477,11 +477,12 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     }).catch(() => null);
 
     const status = response ? response.status() : 0;
-    
     const bodyText = await page.locator('body').innerText().catch(() => '');
     const isCrash = status >= 400 || bodyText.toLowerCase().includes('bad request') || bodyText.toLowerCase().includes('too large') || bodyText.toLowerCase().includes('400') || bodyText.toLowerCase().includes('413') || bodyText.toLowerCase().includes('414');
 
-    expect(isCrash, '❌ BUG-006: Hệ thống Crash văng lỗi HTTP (400/413/414) kèm HTML trắng khi tìm kiếm chuỗi dài thay vì có UI tử tế').toBe(true);
+    // MONG ĐỢI LÝ TƯỞNG: Ứng dụng hoạt động bình thường, không bị crash
+    // NẾU isCrash = true -> Test sẽ bị đánh FAILED (Màu đỏ) -> Báo cáo có BUG
+    expect(isCrash, '❌ BUG-006: Hệ thống Crash văng lỗi HTTP (400/413/414) kèm HTML trắng khi tìm kiếm chuỗi dài thay vì có UI tử tế').toBe(false);
   });
 
 });

@@ -13,9 +13,12 @@ test.describe('iQIYI E2E: Tính năng Bình luận (Comments)', () => {
     await page.goto(enUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('video', { timeout: 15000 }).catch(() => {});
 
-    // Tìm bằng text vì class có thể bị minify/thay đổi
-    const commentBtnEn = page.locator('text="Comments"').first();
-    const isBtnVisibleEn = await commentBtnEn.isVisible({ timeout: 15000 }).catch(() => false);
+    // Tìm bằng text vì class có thể bị minify/thay đổi. Bao gồm cả "Comment" và "Comments"
+    const commentBtnEn = page.locator('text="Comments", text="Comment"').first();
+    
+    // Ép Playwright phải ĐỢI tối đa 15s cho đến khi nút xuất hiện
+    await commentBtnEn.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
+    const isBtnVisibleEn = await commentBtnEn.isVisible();
     
     expect(isBtnVisibleEn, 'Khẳng định cơ bản: Nút Comments phải tồn tại trên Tiếng Anh').toBe(true);
     
@@ -32,8 +35,9 @@ test.describe('iQIYI E2E: Tính năng Bình luận (Comments)', () => {
     await page.goto(vnUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('video', { timeout: 15000 }).catch(() => {});
 
-    const commentBtnVn = page.locator('div[class*="comment"], button[class*="comment"], [aria-label*="Comment"], [aria-label*="Bình luận"]').first();
-    const isCommentBtnVisibleVn = await commentBtnVn.isVisible({ timeout: 5000 }).catch(() => false);
+    const commentBtnVn = page.locator('text="Bình luận", text="Comments", text="Comment"').first();
+    await commentBtnVn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    const isCommentBtnVisibleVn = await commentBtnVn.isVisible();
     
     if (isCommentBtnVisibleVn) {
       await commentBtnVn.click({ force: true });

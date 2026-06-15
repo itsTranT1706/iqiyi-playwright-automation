@@ -467,5 +467,21 @@ test.describe('iQIYI E2E: Tìm kiếm & Bộ lọc (Search & Filters)', () => {
     expect(hasViTitle || hasEnTitle).toBe(true);
     await context.close();
   });
+  test('TC2.16: Lỗi Crash/Bad Request khi tìm kiếm chuỗi quá dài (BUG-006)', async ({ page }) => {
+    // Tạo một chuỗi cực dài (8000 ký tự) để ép server ném lỗi Layer 7 (URI Too Long / Bad Request)
+    const longQuery = 'A'.repeat(8000);
+    
+    const response = await page.goto(`https://www.iq.com/search?query=${longQuery}&lang=vi_vn`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 60000
+    }).catch(() => null);
+
+    const status = response ? response.status() : 0;
+    
+    const bodyText = await page.locator('body').innerText().catch(() => '');
+    const isCrash = status >= 400 || bodyText.toLowerCase().includes('bad request') || bodyText.toLowerCase().includes('too large') || bodyText.toLowerCase().includes('400') || bodyText.toLowerCase().includes('413') || bodyText.toLowerCase().includes('414');
+
+    expect(isCrash, '❌ BUG-006: Hệ thống Crash văng lỗi HTTP (400/413/414) kèm HTML trắng khi tìm kiếm chuỗi dài thay vì có UI tử tế').toBe(true);
+  });
 
 });

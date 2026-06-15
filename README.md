@@ -115,8 +115,38 @@ Bạn có thể chạy riêng từng Project nâng cao bằng cách chỉ địn
         npx playwright test tests/visual --project="Visual"
         ```
 
-### 4. Xem báo cáo kiểm thử (Test Report)
-Sau khi hoàn thành chạy test, xem báo cáo giao diện HTML sinh ra tự động bằng lệnh:
-```bash
-npx playwright show-report
-```
+### 4. Cheatsheet Câu lệnh thường dùng (Dành cho QA)
+
+Dưới đây là các câu lệnh hữu ích để thực thi test script trong các tình huống thực tế:
+
+*   **Chạy toàn bộ các test cases (Chạy tổng bộ):**
+    ```bash
+    npx playwright test
+    ```
+*   **Chạy tất cả test của một chức năng cụ thể (Ví dụ: Tìm kiếm):**
+    ```bash
+    npx playwright test tests/e2e/search.spec.ts
+    ```
+*   **Chạy riêng một Test Case cụ thể (Bằng mã TC hoặc tên):**
+    ```bash
+    npx playwright test -g "TC2.16"
+    ```
+*   **Chạy riêng kiểm thử lỗi liệt nút Bình luận (BUG-005):**
+    ```bash
+    npx playwright test tests/e2e/comments.spec.ts --project="E2E - Chrome"
+    ```
+*   **Chạy riêng kiểm thử rò rỉ Bảo mật Server (BUG-SEC-001):**
+    ```bash
+    npx playwright test tests/e2e/security.spec.ts --project="E2E - Chrome"
+    ```
+*   **Xóa phiên đăng nhập (Auth Session) để ép chạy lại luồng Login từ đầu:**
+    ```bash
+    Remove-Item auth.json -ErrorAction SilentlyContinue
+    ```
+    *(Đối với Linux/macOS: `rm -f auth.json`)*
+
+*   **Tạo và xem báo cáo kiểm thử tự động (HTML Report):**
+    Sau khi chạy xong, Playwright tự động lưu kết quả. Để mở báo cáo lên xem ảnh/video lỗi:
+    ```bash
+    npx playwright show-report
+    ```

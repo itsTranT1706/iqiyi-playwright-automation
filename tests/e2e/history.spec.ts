@@ -320,7 +320,7 @@ test.describe('iQIYI E2E: Lịch sử xem (Continue Watching History)', () => {
       const v = document.querySelector('video');
       if (v) v.pause();
     });
-    await tab2.waitForTimeout(1000); // Đợi gửi request
+    await tab2.waitForTimeout(5000); // Đợi gửi request (tăng lên 5s cho mạng 4G)
     await tab2.close();
 
     // Mở trang lịch sử xem và xác nhận xem mốc 20% hay 10% được lưu giữ

@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('iQIYI E2E: Tính năng Bình luận (Comments)', () => {
-
+  // Chạy dưới dạng KHÁCH (Không đăng nhập) để tránh việc Profile Account ép ngôn ngữ về Tiếng Việt
+  test.use({ storageState: { cookies: [], origins: [] } });
   test('TC4.1: Lỗi tương tác nút Bình luận (Comments) đa ngôn ngữ', async ({ page }) => {
     let jsErrors: Error[] = [];
     page.on('pageerror', error => {
@@ -13,8 +14,8 @@ test.describe('iQIYI E2E: Tính năng Bình luận (Comments)', () => {
     await page.goto(enUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('video', { timeout: 15000 }).catch(() => {});
 
-    // Tìm bằng text vì class có thể bị minify/thay đổi. Bao gồm cả "Comment" và "Comments"
-    const commentBtnEn = page.locator('text="Comments", text="Comment"').first();
+    // Tìm nút Comments dựa vào Text hiển thị trên màn hình
+    const commentBtnEn = page.locator('text="Comments"').first();
     
     // Ép Playwright phải ĐỢI tối đa 15s cho đến khi nút xuất hiện
     await commentBtnEn.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
@@ -35,7 +36,8 @@ test.describe('iQIYI E2E: Tính năng Bình luận (Comments)', () => {
     await page.goto(vnUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('video', { timeout: 15000 }).catch(() => {});
 
-    const commentBtnVn = page.locator('text="Bình luận", text="Comments", text="Comment"').first();
+    // Tìm nút Bình luận dựa vào Text (Mong đợi sẽ không tìm thấy -> Ném lỗi)
+    const commentBtnVn = page.locator('text="Bình luận"').first();
     await commentBtnVn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
     const isCommentBtnVisibleVn = await commentBtnVn.isVisible();
     
